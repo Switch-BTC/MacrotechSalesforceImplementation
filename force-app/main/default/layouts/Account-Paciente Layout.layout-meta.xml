@@ -142,10 +142,6 @@
                 <behavior>Edit</behavior>
                 <field>ARS__c</field>
             </layoutItems>
-            <layoutItems>
-                <behavior>Edit</behavior>
-                <field>Description</field>
-            </layoutItems>
         </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>
