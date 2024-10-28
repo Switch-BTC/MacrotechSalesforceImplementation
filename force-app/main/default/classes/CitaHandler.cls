@@ -1,9 +1,7 @@
-//Switch BTC
 public without sharing class CitaHandler {
 
     @InvocableMethod(label='Process Cita ID' description='Processes Cita ID and interacts with external system')
     public static void processCitaID(List<CitaIDRequest> requests) {
-        
         String citaid = '';
         for (CitaIDRequest request : requests) {
             citaid = request.citaId;
@@ -40,7 +38,7 @@ public without sharing class CitaHandler {
             Cita__c cita = [SELECT Id, Account__c FROM Cita__c WHERE Id = :citaId LIMIT 1];
             Account account = [SELECT Id, PatientID__c, Sucursal__r.C_digo__c, Tipo_de_identificaci_n__c, Fecha_de_Nacimiento__c, No_Identificaci_n__c, SGR_Response__c  
                                 FROM Account WHERE Id = :cita.Account__c LIMIT 1];
-            Contact cont = [SELECT Id, Name, FirstName, LastName, Email, AccountId FROM CONTACT WHERE AccountId = :account.Id LIMIT 1];
+            Contact cont = [SELECT Id, Name, FirstName, LastName, Email, AccountId FROM Contact WHERE AccountId = :account.Id LIMIT 1];
 
             // Callout to create a patient in the external system
             String newPatientID = createPatientInExternalSystem(account, cont);
@@ -54,24 +52,27 @@ public without sharing class CitaHandler {
                 updatePatientRecord(account.Id, account.SGR_Response__c, newPatientID);
 
                 // Enqueue a new job to create a Cita using the new PatientID
-                System.enqueueJob(new CreateCitaJob(account.PatientID__c, citaId));
+                if (!Test.isRunningTest()) {
+                    System.enqueueJob(new CreateCitaJob(account.PatientID__c, citaId));
+                } else {
+                    // If running in test context, directly call the method to create Cita
+                    CitaHandler.createCitaInExternalSystem(account.PatientID__c, citaId);
+                }
             }
         }
 
         private String createPatientInExternalSystem(Account account, Contact cont) {
             try {
-                //Check if Environment is a Sandbox
                 // Check if the environment is sandbox or production
                 Organization org = [SELECT IsSandbox FROM Organization LIMIT 1];
                 Boolean isSandbox = org.IsSandbox;
 
                 // Use the appropriate string based on the environment
-                String environmentString = isSandbox? 'Sandbox' : 'Production';
+                String environmentString = isSandbox ? 'Sandbox' : 'Production';
 
-                //Get App Keys from SGR Keys App
-                SGR_Key__c sgrKeys = [SELECT Id, Name, Patient_Endpoint__c, Cita_Endpoint__c, Username__c, Password__c  FROM SGR_Key__C WHERE Name = :environmentString Limit 1];
-                
-                
+                // Get App Keys from SGR Keys App
+                SGR_Key__c sgrKeys = [SELECT Id, Name, Patient_Endpoint__c, Cita_Endpoint__c, Username__c, Password__c  FROM SGR_Key__C WHERE Name = :environmentString LIMIT 1];
+
                 HttpRequest req = new HttpRequest();
                 req.setEndpoint(sgrKeys.Patient_Endpoint__c);
                 req.setMethod('POST');
@@ -92,15 +93,12 @@ public without sharing class CitaHandler {
                 patientbody.User = sgrKeys.Username__c;
                 patientbody.Password = sgrKeys.Password__c;
 
-                System.debug('This is the Patient Body ' + patientbody);
-
                 req.setBody(patientbody.toJson());
 
                 Http http = new Http();
                 HttpResponse res = http.send(req);
 
                 if (res.getStatusCode() == 200) {
-                    System.debug('This is the response: ' + res.getBody());
                     PatientResponse patientres = PatientResponse.parse(res.getBody());
                     String patientid = String.valueOf(patientres.PacienteId);
 
@@ -132,21 +130,22 @@ public without sharing class CitaHandler {
         }
 
         public void execute(QueueableContext context) {
-            createCitaInExternalSystem(patientId, citaId);
+            CitaHandler.createCitaInExternalSystem(patientId, citaId);
         }
     }
 
-    private static void createCitaInExternalSystem(String patientId, Id citaid) {
+    // Moved createCitaInExternalSystem to the outer class
+    public static void createCitaInExternalSystem(String patientId, Id citaid) {
         try {
             Organization org = [SELECT IsSandbox FROM Organization LIMIT 1];
             Boolean isSandbox = org.IsSandbox;
 
-                // Use the appropriate string based on the environment
-            String environmentString = isSandbox? 'Sandbox' : 'Production';
+            // Use the appropriate string based on the environment
+            String environmentString = isSandbox ? 'Sandbox' : 'Production';
 
-                //Get App Keys from SGR Keys App
-            SGR_Key__c sgrKeys = [SELECT Id, Name, Patient_Endpoint__c, Cita_Endpoint__c, Username__c, Password__c  FROM SGR_Key__C WHERE Name = :environmentString Limit 1];
-                
+            // Get App Keys from SGR Keys App
+            SGR_Key__c sgrKeys = [SELECT Id, Name, Patient_Endpoint__c, Cita_Endpoint__c, Username__c, Password__c FROM SGR_Key__C WHERE Name = :environmentString LIMIT 1];
+
             Cita__c cita = [SELECT Id, Account__c, Start_Date__c, Comentarios__c FROM Cita__c WHERE Id = :citaid LIMIT 1];
             Integer pacienteId = Integer.valueOf(patientId);
 
@@ -181,6 +180,7 @@ public without sharing class CitaHandler {
         }
     }
 
+    // Moved updateCitaRecord to the outer class
     private static void updateCitaRecord(Id citaId, String responseBody, String citaExternal) {
         Cita__c citaToUpdate = new Cita__c(Id = citaId, SGR_Response__c = responseBody, CitaId__c = citaExternal);
         update citaToUpdate;

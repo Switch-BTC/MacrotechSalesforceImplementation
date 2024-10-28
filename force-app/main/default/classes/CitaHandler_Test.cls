@@ -1,4 +1,3 @@
-//Switch BTC
 @IsTest
 public class CitaHandler_Test {
     @IsTest
@@ -8,7 +7,6 @@ public class CitaHandler_Test {
 
         Organization org = [SELECT IsSandbox FROM Organization LIMIT 1];
         String environmentString = org.IsSandbox ? 'Sandbox' : 'Production';
-
 
         SGR_Key__c sgrKey = new SGR_Key__c(
             Name = environmentString,  
@@ -20,20 +18,20 @@ public class CitaHandler_Test {
         insert sgrKey;
 
         Account sucursal = new Account(Name = 'Centro Sucursal', Centro_CAI__c = TRUE, C_digo__c = '22', RecordTypeId = centroRecordTypeId);
-       // insert sucursal;
+        insert sucursal;
 
         // Create an Account without PatientID__c
         Account account = new Account(
             Name = 'Test Account', 
             No_Identificaci_n__c = '111222333', 
             Tipo_de_identificaci_n__c = '1',
-            Sucursal__c = sucursal.Id
+            Sucursal__c = sucursal.Id,
+            Fecha_de_Nacimiento__c = Date.today()
         );
         insert account;
 
         Contact contact = new Contact(FirstName = 'Test', LastName = 'Contact', AccountId = account.Id, Email = 'test@example.com');
         insert contact;
-
 
         Cita__c cita = new Cita__c(Account__c = account.Id, Is_Job_Processed__c = true, Start_Date__c = DateTime.now(), Estatus_Cita__c = '1');
         insert cita;
@@ -52,7 +50,11 @@ public class CitaHandler_Test {
 
         // Verify account update with a new PatientID
         Account updatedAccount = [SELECT PatientID__c FROM Account WHERE Id = :account.Id];
-       // System.assertNotEquals(null, updatedAccount.PatientID__c, 'PatientID should be set on Account after job execution.');
+        System.assertNotEquals(null, updatedAccount.PatientID__c, 'PatientID should be set on Account after job execution.');
+
+        // Verify that the Cita record's SGR_Response__c was updated
+        Cita__c updatedCita = [SELECT SGR_Response__c FROM Cita__c WHERE Id = :cita.Id];
+       // System.assertNotEquals(null, updatedCita.SGR_Response__c, 'SGR_Response__c should be set on Cita after job execution.');
     }
 
     @IsTest
@@ -102,6 +104,8 @@ public class CitaHandler_Test {
         System.assertNotEquals(null, updatedCita.SGR_Response__c, 'SGR_Response__c should be set on Cita after job execution.');
     }
 
+    // Other test methods remain the same...
+
     // Mock response generator for HTTP callouts
     private class MockHttpResponseGenerator implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {
@@ -114,6 +118,24 @@ public class CitaHandler_Test {
             if (req.getEndpoint().contains('/PatientEndpoint')) {
                 res.setBody('{"PacienteId": "56789"}');
             } else if (req.getEndpoint().contains('/CitaEndpoint')) {
+                res.setBody('{"CitaId": "98765"}');
+            }
+            return res;
+        }
+    }
+
+    // Mock response generator for HTTP callouts that simulate failures
+    private class MockHttpResponseGeneratorFailure implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            // Create a fake HTTP response
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            // Return a mock response depending on the request endpoint
+            if (req.getEndpoint().contains('/PatientEndpoint')) {
+                res.setStatusCode(500);
+                res.setBody('{"error":"Internal Server Error"}');
+            } else if (req.getEndpoint().contains('/CitaEndpoint')) {
+                res.setStatusCode(200);
                 res.setBody('{"CitaId": "98765"}');
             }
             return res;
