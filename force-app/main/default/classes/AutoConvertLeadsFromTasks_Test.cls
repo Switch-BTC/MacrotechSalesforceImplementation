@@ -3,11 +3,15 @@ public class AutoConvertLeadsFromTasks_Test {
 
     @isTest
     static void Test1(){
+        
+        RecordType recordCentro = [Select Id, Name From RecordType Where SobjectType = 'Account' and Name = 'Centro'];
+        
+        
         Account sucursal = new Account();
         sucursal.Name = 'Sucursal CAI';
         sucursal.C_digo__c = '1234';
         sucursal.Centro_CAI__c = TRUE;
-        sucursal.RecordTypeId = '012bb0000009DCYAA2';
+        sucursal.RecordTypeId = recordCentro.Id;
         
         insert sucursal;
         
