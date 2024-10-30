@@ -3,15 +3,15 @@
     <actionCalls>
         <name>Push_Notification</name>
         <label>Push Notification</label>
-        <locationX>794</locationX>
-        <locationY>767</locationY>
+        <locationX>789</locationX>
+        <locationY>924</locationY>
         <actionName>customNotificationAction</actionName>
         <actionType>customNotificationAction</actionType>
         <flowTransactionModel>CurrentTransaction</flowTransactionModel>
         <inputParameters>
             <name>customNotifTypeId</name>
             <value>
-                <stringValue>0MLbb00000009MfGAI</stringValue>
+                <elementReference>Get_Custom_Notification.Id</elementReference>
             </value>
         </inputParameters>
         <inputParameters>
@@ -55,7 +55,7 @@
             </value>
         </assignmentItems>
         <connector>
-            <targetReference>Push_Notification</targetReference>
+            <targetReference>Get_Custom_Notification</targetReference>
         </connector>
     </assignments>
     <environments>Default</environments>
@@ -121,6 +121,27 @@
         <object>Task</object>
         <storeOutputAutomatically>true</storeOutputAutomatically>
     </recordCreates>
+    <recordLookups>
+        <name>Get_Custom_Notification</name>
+        <label>Get Custom Notification</label>
+        <locationX>786</locationX>
+        <locationY>754</locationY>
+        <assignNullValuesIfNoRecordsFound>false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Push_Notification</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>CustomNotifTypeName</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Lead Task</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>CustomNotificationType</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
     <start>
         <locationX>650</locationX>
         <locationY>48</locationY>
